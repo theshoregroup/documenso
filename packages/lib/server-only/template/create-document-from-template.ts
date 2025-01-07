@@ -1,3 +1,5 @@
+import type { z } from 'zod';
+
 import { nanoid } from '@documenso/lib/universal/id';
 import { prisma } from '@documenso/prisma';
 import type { DocumentDistributionMethod } from '@documenso/prisma/client';
@@ -11,6 +13,11 @@ import {
   SigningStatus,
   WebhookTriggerEvents,
 } from '@documenso/prisma/client';
+import {
+  DocumentDataSchema,
+  DocumentSchema,
+  RecipientSchema,
+} from '@documenso/prisma/generated/zod';
 
 import type { SupportedLanguageCodes } from '../../constants/i18n';
 import { AppError, AppErrorCode } from '../../errors/app-error';
@@ -36,10 +43,6 @@ type FinalRecipient = Pick<
   fields: Field[];
 };
 
-export type CreateDocumentFromTemplateResponse = Awaited<
-  ReturnType<typeof createDocumentFromTemplate>
->;
-
 export type CreateDocumentFromTemplateOptions = {
   templateId: number;
   externalId?: string | null;
@@ -51,6 +54,7 @@ export type CreateDocumentFromTemplateOptions = {
     email: string;
     signingOrder?: number | null;
   }[];
+  customDocumentDataId?: string;
 
   /**
    * Values that will override the predefined values in the template.
@@ -72,15 +76,25 @@ export type CreateDocumentFromTemplateOptions = {
   requestMetadata?: RequestMetadata;
 };
 
+export const ZCreateDocumentFromTemplateResponseSchema = DocumentSchema.extend({
+  documentData: DocumentDataSchema,
+  Recipient: RecipientSchema.array(),
+});
+
+export type TCreateDocumentFromTemplateResponse = z.infer<
+  typeof ZCreateDocumentFromTemplateResponseSchema
+>;
+
 export const createDocumentFromTemplate = async ({
   templateId,
   externalId,
   userId,
   teamId,
   recipients,
+  customDocumentDataId,
   override,
   requestMetadata,
-}: CreateDocumentFromTemplateOptions) => {
+}: CreateDocumentFromTemplateOptions): Promise<TCreateDocumentFromTemplateResponse> => {
   const user = await prisma.user.findFirstOrThrow({
     where: {
       id: userId,
@@ -159,11 +173,29 @@ export const createDocumentFromTemplate = async ({
     };
   });
 
+  let parentDocumentData = template.templateDocumentData;
+
+  if (customDocumentDataId) {
+    const customDocumentData = await prisma.documentData.findFirst({
+      where: {
+        id: customDocumentDataId,
+      },
+    });
+
+    if (!customDocumentData) {
+      throw new AppError(AppErrorCode.NOT_FOUND, {
+        message: 'Custom document data not found',
+      });
+    }
+
+    parentDocumentData = customDocumentData;
+  }
+
   const documentData = await prisma.documentData.create({
     data: {
-      type: template.templateDocumentData.type,
-      data: template.templateDocumentData.data,
-      initialData: template.templateDocumentData.initialData,
+      type: parentDocumentData.type,
+      data: parentDocumentData.data,
+      initialData: parentDocumentData.initialData,
     },
   });
 
