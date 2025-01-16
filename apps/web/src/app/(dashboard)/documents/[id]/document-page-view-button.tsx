@@ -18,14 +18,14 @@ import { useToast } from '@documenso/ui/primitives/use-toast';
 
 export type DocumentPageViewButtonProps = {
   document: Document & {
-    User: Pick<User, 'id' | 'name' | 'email'>;
-    Recipient: Recipient[];
+    user: Pick<User, 'id' | 'name' | 'email'>;
+    recipients: Recipient[];
     team: Pick<Team, 'id' | 'url'> | null;
   };
   team?: Pick<Team, 'id' | 'url'>;
 };
 
-export const DocumentPageViewButton = ({ document, team }: DocumentPageViewButtonProps) => {
+export const DocumentPageViewButton = ({ document }: DocumentPageViewButtonProps) => {
   const { data: session } = useSession();
   const { toast } = useToast();
   const { _ } = useLingui();
@@ -34,7 +34,7 @@ export const DocumentPageViewButton = ({ document, team }: DocumentPageViewButto
     return null;
   }
 
-  const recipient = document.Recipient.find((recipient) => recipient.email === session.user.email);
+  const recipient = document.recipients.find((recipient) => recipient.email === session.user.email);
 
   const isRecipient = !!recipient;
   const isPending = document.status === DocumentStatus.PENDING;
@@ -48,7 +48,6 @@ export const DocumentPageViewButton = ({ document, team }: DocumentPageViewButto
     try {
       const documentWithData = await trpcClient.document.getDocumentById.query({
         documentId: document.id,
-        teamId: team?.id,
       });
 
       const documentData = documentWithData?.documentData;

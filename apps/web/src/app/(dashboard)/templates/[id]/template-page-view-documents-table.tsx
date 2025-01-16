@@ -73,7 +73,6 @@ export const TemplatePageViewDocumentsTable = ({
     trpc.document.findDocuments.useQuery(
       {
         templateId,
-        teamId: team?.id,
         page: parsedSearchParams.page,
         perPage: parsedSearchParams.perPage,
         query: parsedSearchParams.query,
@@ -117,7 +116,7 @@ export const TemplatePageViewDocumentsTable = ({
         accessorKey: 'recipient',
         cell: ({ row }) => (
           <StackAvatarsWithTooltip
-            recipients={row.original.Recipient}
+            recipients={row.original.recipients}
             documentStatus={row.original.status}
           />
         ),
